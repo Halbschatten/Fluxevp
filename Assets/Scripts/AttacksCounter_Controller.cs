@@ -12,11 +12,13 @@ namespace StarterAssets
         private static int AttackCounter2 = 0;
 
 
+        // CONTROLLED BY UNITY ANIMATION EVENT
         public static void INCREASEATTACK1()
         {
             AttackCounter1++;
         }
 
+        // CONTROLLED BY UNITY ANIMATION EVENT
         public static void INCREASEATTACK2() 
         {         
             AttackCounter2++;

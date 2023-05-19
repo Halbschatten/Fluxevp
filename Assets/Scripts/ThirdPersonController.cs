@@ -88,12 +88,12 @@ namespace StarterAssets
 		{
 			_attacking = _atkng;
 		}
-		public void AddAttack1Counter()
+		public void AddAttack1Counter()  // CONTROLLED BY UNITY ANIMATION EVENT
 		{
 			AttacksCounter_Controller.INCREASEATTACK1();
             _UIController.RefeshAttack1Counter();
         }
-        public void AddAttack2Counter()
+        public void AddAttack2Counter() // CONTROLLED BY UNITY ANIMATION EVENT
         {
             AttacksCounter_Controller.INCREASEATTACK2();
             _UIController.RefeshAttack2Counter();
@@ -454,7 +454,6 @@ namespace StarterAssets
                 {
                     _jumpTimeoutDelta -= Time.deltaTime;
                     _secondJump = false;
-                    Debug.Log("jumpoff");
                 }
             }
         }
