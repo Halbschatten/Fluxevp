@@ -58,39 +58,70 @@ namespace StarterAssets
 		public float CameraAngleOverride = 0.0f;
 		[Tooltip("For locking the camera position on all axis")]
 		public bool LockCameraPosition = false;
-		[Tooltip("Set true if the animation should be interrupted by user input")]
-		public bool attackInterruption = true;
+		[Tooltip("Set true if the animation can be interrupted by user input")]
+		public bool AttackInterruption = true;
+		[Tooltip("Set true if the character has double jump")]
+		public bool CanDoubleJump = true;
+
+
 
 		// cinemachine
 		private float _cinemachineTargetYaw;
 		private float _cinemachineTargetPitch;
 
-		// player
-		private float _speed;
+
+        //					-----------------------------------------					//
+        // player
+        private float _speed;
 		private float _animationBlend;
 		private float _targetRotation = 0.0f;
 		private float _rotationVelocity;
 		private float _verticalVelocity;
 		private float _terminalVelocity = 53.0f;
+        //Double Jump
+        private bool _firstJump = false;
+        private bool _secondJump = false;
+        private bool _jump = false;
+        //Attack
+        private bool _attacking = false;
+		public void SetAttacking(bool _atkng)
+		{
+			_attacking = _atkng;
+		}
+		public void AddAttack1Counter()
+		{
+			AttacksCounter_Controller.INCREASEATTACK1();
+            _UIController.RefeshAttack1Counter();
+        }
+        public void AddAttack2Counter()
+        {
+            AttacksCounter_Controller.INCREASEATTACK2();
+            _UIController.RefeshAttack2Counter();
+        }
 
-		// timeout deltatime
-		private float _jumpTimeoutDelta;
+        //					-----------------------------------------					//
+        // timeout deltatime
+        private float _jumpTimeoutDelta;
 		private float _fallTimeoutDelta;
 
 		// animation IDs
 		private int _animIDSpeed;
 		private int _animIDGrounded;
 		private int _animIDJump;
+		private string _animIDSecondJump = "SecondJump";
 		private int _animIDFreeFall;
 		private int _animIDMotionSpeed;
+
+		//					-----------------------------------------					//
 
 		private PlayerInput _playerInput;
 		private Animator _animator;
 		private CharacterController _controller;
 		private StarterAssetsInputs _input;
 		private GameObject _mainCamera;
+		public UICanvasControllerInput _UIController;
 
-		private const float _threshold = 0.01f;
+        private const float _threshold = 0.01f;
 
 		private bool _hasAnimator;
 		private static readonly int Punch = Animator.StringToHash("Punch");
@@ -98,7 +129,19 @@ namespace StarterAssets
 
 		private bool IsCurrentDeviceMouse => _playerInput.currentControlScheme == "KeyboardMouse";
 
-		private void Awake()
+		public void JumpAction() // Activated by the Unity Event 
+        {
+			_jump = true;
+
+			if(_firstJump) // Reset variables so the player can do a second jump
+            {
+				_secondJump = true;
+				_jumpTimeoutDelta = 0f;
+				_fallTimeoutDelta = 0f;
+			}
+        }
+
+        private void Awake()
 		{
 			// get a reference to our main camera
 			if (_mainCamera == null)
@@ -112,7 +155,9 @@ namespace StarterAssets
 			_hasAnimator = TryGetComponent(out _animator);
 			_controller = GetComponent<CharacterController>();
 			_input = GetComponent<StarterAssetsInputs>();
-			_playerInput = GetComponent<PlayerInput>();
+			_input.SetController(this);
+			_UIController = FindObjectOfType<UICanvasControllerInput>();
+            _playerInput = GetComponent<PlayerInput>();
 
 			AssignAnimationIDs();
 
@@ -124,56 +169,11 @@ namespace StarterAssets
 		private void Update()
 		{
 			_hasAnimator = TryGetComponent(out _animator);
-			
+
 			JumpAndGravity();
 			GroundedCheck();
 			Move();
-			Attack();
 		}
-
-		private void Attack()
-		{
-			if (attackInterruption)
-			{
-				AttackWithInterruption();
-			}
-			else
-			{
-				AttackWithoutInterruption();
-			}
-		}
-
-		private void AttackWithoutInterruption() // The Animation can be reset while in middle animation
-        {
-			if (_input.attack1 && !_input.attacking)
-			{
-				_input.attacking = true;
-				_animator.SetTrigger(Punch);
-				_input.attack1 = false;
-
-			}
-			if (_input.attack2 && !_input.attacking)
-			{
-				_input.attacking = true;
-				_animator.SetTrigger(Kick);
-				_input.attack2 = false;
-			}
-		}
-
-		private void AttackWithInterruption() // The Animation can NOT be reset while in middle animation
-		{
-			if (_input.attack1)			
-			{
-				_animator.SetTrigger(Punch);
-				_input.attack1 = false;
-			}
-			if (_input.attack2)
-			{
-				_animator.SetTrigger(Kick);
-				_input.attack2 = false;
-			}
-		}
-
 
 		private void LateUpdate()
 		{
@@ -182,18 +182,32 @@ namespace StarterAssets
 
 		private void AssignAnimationIDs()
 		{
-			_animIDSpeed = Animator.StringToHash("Speed");
+            _animIDSpeed = Animator.StringToHash("Speed");
 			_animIDGrounded = Animator.StringToHash("Grounded");
 			_animIDJump = Animator.StringToHash("Jump");
-			_animIDFreeFall = Animator.StringToHash("FreeFall");
+            _animIDFreeFall = Animator.StringToHash("FreeFall");
 			_animIDMotionSpeed = Animator.StringToHash("MotionSpeed");
 		}
 
-		private void GroundedCheck()
+		private void GroundedCheck() // Checks if the player has contact to with the ground, also fakes ground for double jump
 		{
-			// set sphere position, with offset
-			Vector3 spherePosition = new Vector3(transform.position.x, transform.position.y - GroundedOffset, transform.position.z);
-			Grounded = Physics.CheckSphere(spherePosition, GroundedRadius, GroundLayers, QueryTriggerInteraction.Ignore);
+			if (_secondJump)  // Forces ground check
+			{
+				Grounded = true;
+			}
+			else
+			{
+				// set sphere position, with offset
+				Vector3 spherePosition = new Vector3(transform.position.x, transform.position.y - GroundedOffset, transform.position.z);
+				Grounded = Physics.CheckSphere(spherePosition, GroundedRadius, GroundLayers, QueryTriggerInteraction.Ignore);
+			}
+
+			if (Grounded) // If it's grounded it's not doing the first jump
+			{
+                _firstJump = false;
+			}
+
+
 
 			// update animator if using character
 			if (_hasAnimator)
@@ -202,6 +216,7 @@ namespace StarterAssets
 			}
 		}
 
+
 		private void CameraRotation()
 		{
 			// if there is an input and camera position is not fixed
@@ -209,7 +224,7 @@ namespace StarterAssets
 			{
 				//Don't multiply mouse input by Time.deltaTime;
 				float deltaTimeMultiplier = IsCurrentDeviceMouse ? 1.0f : Time.deltaTime;
-				
+
 				_cinemachineTargetYaw += _input.look.x * deltaTimeMultiplier;
 				_cinemachineTargetPitch += _input.look.y * deltaTimeMultiplier;
 			}
@@ -221,6 +236,42 @@ namespace StarterAssets
 			// Cinemachine will follow this target
 			CinemachineCameraTarget.transform.rotation = Quaternion.Euler(_cinemachineTargetPitch + CameraAngleOverride, _cinemachineTargetYaw, 0.0f);
 		}
+
+
+		public void Attack1()  // Attack 1 (Punch) Keyboard Q
+		{
+			if (!AttackInterruption) // Attack with Interruption
+			{
+				if (!_attacking)
+				{
+					_attacking = true;
+					_animator.SetTrigger(Punch);
+				}
+			}
+			else // Attack with NO Interruption
+			{
+				_animator.SetTrigger(Punch);
+			}
+		}
+
+
+		public void Attack2()// Attack 2 (Kick) Keyboard E
+        {
+			if (!AttackInterruption ) // Attack with Interruption
+			{
+				if (!_attacking)
+				{
+					_attacking = true;
+					_animator.SetTrigger(Kick);
+				}
+			}
+			else  // Attack with NO Interruption
+			{
+				_animator.SetTrigger(Kick);
+			}
+		}
+
+
 
 		private void Move()
 		{
@@ -253,6 +304,7 @@ namespace StarterAssets
 			{
 				_speed = targetSpeed;
 			}
+
 			_animationBlend = Mathf.Lerp(_animationBlend, targetSpeed, Time.deltaTime * SpeedChangeRate);
 
 			// normalise input direction
@@ -283,12 +335,16 @@ namespace StarterAssets
 			}
 		}
 
+
+
 		private void JumpAndGravity()
-		{
-			if (Grounded)
+		{			
+
+            if (Grounded && !_secondJump) // First Jump Init
 			{
-				// reset the fall timeout timer
-				_fallTimeoutDelta = FallTimeout;
+                _animator.SetBool(_animIDSecondJump, false);
+                // reset the fall timeout timer
+                _fallTimeoutDelta = FallTimeout;
 
 				// update animator if using character
 				if (_hasAnimator)
@@ -301,10 +357,11 @@ namespace StarterAssets
 				if (_verticalVelocity < 0.0f)
 				{
 					_verticalVelocity = -2f;
+					
 				}
 
 				// Jump
-				if (_input.jump && _jumpTimeoutDelta <= 0.0f)
+				if (_jump && _jumpTimeoutDelta <= 0.0f)
 				{
 					// the square root of H * -2 * G = how much velocity needed to reach desired height
 					_verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
@@ -314,6 +371,7 @@ namespace StarterAssets
 					{
 						_animator.SetBool(_animIDJump, true);
 					}
+					_firstJump = true;
 				}
 
 				// jump timeout
@@ -322,8 +380,9 @@ namespace StarterAssets
 					_jumpTimeoutDelta -= Time.deltaTime;
 				}
 			}
-			else
+			else if(!_secondJump)
 			{
+
 				// reset the jump timeout timer
 				_jumpTimeoutDelta = JumpTimeout;
 
@@ -341,18 +400,65 @@ namespace StarterAssets
 					}
 				}
 
+
 				// if we are not grounded, do not jump
-				_input.jump = false;
+				_jump = false;
 			}
 
-			
-			// apply gravity over time if under terminal (multiply by delta time twice to linearly speed up over time)
-			if (_verticalVelocity < _terminalVelocity)
+            SecondJump();
+
+            // apply gravity over time if under terminal (multiply by delta time twice to linearly speed up over time)
+            if (_verticalVelocity < _terminalVelocity)
 			{
 				_verticalVelocity += Gravity * Time.deltaTime;
 			}
 
 		}
+		void SecondJump()
+		{
+            if (_secondJump) // Second Jump Init
+            {
+                // reset the fall timeout timer
+                _fallTimeoutDelta = FallTimeout;
+
+                // update animator if using character
+                if (_hasAnimator)
+                {
+                    _animator.SetBool(_animIDJump, false);
+                    _animator.SetBool(_animIDFreeFall, false);
+                }
+
+                // stop our velocity dropping infinitely when grounded
+                if (_verticalVelocity < 0.0f)
+                {
+                    _verticalVelocity = -2f;
+
+                }
+
+                // Second Jump
+                if (_jump && _jumpTimeoutDelta <= 0.0f)
+                {
+                    // the square root of H * -2 * G = how much velocity needed to reach desired height
+                    _verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
+
+                    // update animator if using character
+                    if (_hasAnimator)
+                    {
+                        _animator.SetBool(_animIDSecondJump, true);
+                    }
+                    _firstJump = false;
+                }
+
+                // Second jump timeout
+                if (_jumpTimeoutDelta >= 0.0f)
+                {
+                    _jumpTimeoutDelta -= Time.deltaTime;
+                    _secondJump = false;
+                    Debug.Log("jumpoff");
+                }
+            }
+        }
+
 
 		private static float ClampAngle(float lfAngle, float lfMin, float lfMax)
 		{
@@ -368,7 +474,7 @@ namespace StarterAssets
 
 			if (Grounded) Gizmos.color = transparentGreen;
 			else Gizmos.color = transparentRed;
-			
+
 			// when selected, draw a gizmo in the position of, and matching radius of, the grounded collider
 			Gizmos.DrawSphere(new Vector3(transform.position.x, transform.position.y - GroundedOffset, transform.position.z), GroundedRadius);
 		}

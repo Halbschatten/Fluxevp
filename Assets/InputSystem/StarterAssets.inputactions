@@ -27,13 +27,13 @@
                     "id": "8c4abdf8-4099-493a-aa1a-129acec7c3df",
                     "expectedControlType": "Button",
                     "processors": "",
-                    "interactions": ""
+                    "interactions": "Tap(duration=0.02,pressPoint=0.02),Hold(duration=0.1,pressPoint=0.04)"
                 },
                 {
                     "name": "Sprint",
-                    "type": "PassThrough",
+                    "type": "Button",
                     "id": "980e881e-182c-404c-8cbf-3d09fdb48fef",
-                    "expectedControlType": "",
+                    "expectedControlType": "Button",
                     "processors": "",
                     "interactions": ""
                 },
@@ -43,7 +43,7 @@
                     "id": "7b21a1c1-f842-4bfa-b33c-07ee96009269",
                     "expectedControlType": "Button",
                     "processors": "",
-                    "interactions": "Tap,Press"
+                    "interactions": "Tap"
                 },
                 {
                     "name": "Attack2",
@@ -51,7 +51,7 @@
                     "id": "e4428144-842b-427a-b01e-e7259a32aa9b",
                     "expectedControlType": "Button",
                     "processors": "",
-                    "interactions": "Tap,Press"
+                    "interactions": "Tap"
                 }
             ],
             "bindings": [
